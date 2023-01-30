@@ -15,15 +15,14 @@ jobs:
         run: |
           echo "Awesome variable: ${{ vars.AWESOME_VARIABLE }}"
       - name: Update vars variable 
+        env: 
+          TOKEN: ${{ secrets.VARIABLES_TOKEN }}
         uses: actions/github-script@v6
         with:
           script: |
             const requestUri = "PATCH /repos/" + context.repo.owner + "/" + context.repo.repo + "/actions/variables/AWESOME_VARIABLE";
             console.log(requestUri);
             await github.request(requestUri, {
-              headers: {
-                authorization: "token ${{ secrets.VARIABLES_TOKEN }}",
-              },
               name: "AWESOME_VARIABLE",
               value: "test-${{ github.run_id }}"
             });
