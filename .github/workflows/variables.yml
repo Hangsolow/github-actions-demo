@@ -16,7 +16,7 @@ jobs:
           echo "Awesome variable: ${{ vars.AWESOME_VARIABLE }}"
       - name: Update vars variable 
         env: 
-          TOKEN: ${{ secrets.VARIABLES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.VARIABLES_TOKEN }}
         uses: actions/github-script@v6
         with:
           script: |
