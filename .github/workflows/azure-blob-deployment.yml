@@ -1,0 +1,30 @@
+name: Run Azure Login with OIDC
+on:
+  push:
+    branches:
+      - "test/*"
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: test
+      url: https://test.await.io
+    steps:
+      - name: Az CLI login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure CLI script
+        uses: azure/CLI@v1
+        with:
+          azcliversion: latest
+          inlineScript: |
+            $datetime = date --utc +%FT%TZ
+            az storage entity insert --auth-mode login --account-name frontenddeployments --table-name deployments --entity PartitionKey=test RowKey=1.1${{ github.run_number }}.0 Timestamp=$datetime Timestamp@odata.type=Edm.DateTime
