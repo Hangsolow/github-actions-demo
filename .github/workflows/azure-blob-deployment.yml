@@ -26,5 +26,6 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
+            az storage blob upload-batch --destination test/project-helios/1.1${{ github.run_number }}.0 --source src/frontend/dist --auth-mode login --account-name frontenddeployments
             az storage entity insert --auth-mode login --account-name frontenddeployments --table-name deployments --entity PartitionKey=test RowKey=1.1${{ github.run_number }}.0 Version=1.1${{ github.run_number }}.0 Timestamp=${{ github.event.repository.updated_at}} Timestamp@odata.type=Edm.DateTime
             az storage entity replace --auth-mode login --account-name frontenddeployments --table-name deployments --entity PartitionKey=test RowKey=current Version=1.1${{ github.run_number }}.0 Timestamp=${{ github.event.repository.updated_at}} Timestamp@odata.type=Edm.DateTime
