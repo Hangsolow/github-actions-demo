@@ -64,6 +64,6 @@ jobs:
         with:
           azcliversion: ${{ env.AZ_VERSION }}
           inlineScript: |
-            az storage blob upload-batch --destination ${{ env.TABLE_NAME }}/project-helios/${{ env.NEXT_VERSION }} --source src/frontend/dist
+            az storage blob upload-batch --destination test/project-helios/${{ env.NEXT_VERSION }} --source src/frontend/dist
             az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PARTITION_KEY }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
             az storage entity replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PARTITION_KEY }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
