@@ -22,7 +22,7 @@ jobs:
       - run: mkdir -p ~/image-cache
       - name: Cache docker image
         id: image-cache
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/image-cache
           # Adjust key to meet your cache time requirements e.g.
@@ -31,8 +31,8 @@ jobs:
           key: image-cache-${{ runner.os }}
       - if: steps.image-cache.outputs.cache-hit != 'true'
         run: |
-          docker pull mcr.microsoft.com/azure-cli
-          docker save -o ~/image-cache/azure-cli.tar mcr.microsoft.com/azure-cli
+          docker pull mcr.microsoft.com/azure-cli:latest
+          docker save -o ~/image-cache/azure-cli.tar mcr.microsoft.com/azure-cli:latest
 
       - if: steps.image-cache.outputs.cache-hit == 'true'
         run: docker load -i ~/image-cache/azure-cli.tar
