@@ -37,7 +37,7 @@ jobs:
       - name: Set next version
         shell: pwsh
         run: |
-          $currentVersion = "${{ env.CURRENT_VERSION }}"
+          $currentVersion = ${{ env.CURRENT_VERSION }}
           $versionObj = [System.Version]::Parse($currentVersion)
           $nextVersion = "$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)"
           echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
