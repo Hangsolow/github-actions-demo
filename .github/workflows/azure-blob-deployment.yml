@@ -19,6 +19,7 @@ jobs:
       name: test
       url: https://test.await.io
     steps:
+      - run: mkdir -p image-cache
       - name: Cache docker image
         id: image-cache
         uses: actions/cache@v3
@@ -30,7 +31,6 @@ jobs:
           key: image-cache-${{ runner.os }}
       - if: steps.image-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p image-cache
           docker pull mcr.microsoft.com/azure-cli:latest
           docker save -o image-cache/azure-cli.tar mcr.microsoft.com/azure-cli:latest
 
