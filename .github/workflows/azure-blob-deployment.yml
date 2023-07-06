@@ -19,6 +19,24 @@ jobs:
       name: test
       url: https://test.await.io
     steps:
+      - run: mkdir -p ~/image-cache
+      - name: Cache docker image
+        id: image-cache
+        uses: actions/cache@v1
+        with:
+          path: ~/image-cache
+          # Adjust key to meet your cache time requirements e.g.
+          # ${{ hashFiles(*) }} can be useful here to invalidate
+          # cache on file changes
+          key: image-cache-${{ runner.os }}
+      - if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker pull mcr.microsoft.com/azure-cli
+          docker save -o ~/image-cache/azure-cli.tar mcr.microsoft.com/azure-cli
+
+      - if: steps.image-cache.outputs.cache-hit == 'true'
+        run: docker load -i ~/image-cache/azure-cli.tar
+
       - name: Az CLI login
         uses: azure/login@v1
         with:
