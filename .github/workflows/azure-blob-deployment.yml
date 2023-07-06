@@ -6,7 +6,12 @@ on:
 permissions:
   id-token: write
   contents: read
-
+env:
+  AZURE_STORAGE_AUTH_MODE: login
+  AZURE_STORAGE_ACCOUNT: frontenddeployments
+  AZ_VERSION: latest
+  PARTITION_KEY: test
+  TABLE_NAME: deployments
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -22,11 +27,25 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Checkout
         uses: actions/checkout@v3
+      - name: Get current version
+        uses: azure/CLI@v1
+        with:
+          azcliversion: ${{ env.AZ_VERSION }}
+          inlineScript: |
+            currentVersion=$(az storage entity show --partition-key ${{ env.PARTITION_KEY }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
+            echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+      - name: Set next version
+        shell: pwsh
+        run: |
+          $currentVersion = "${{ env.CURRENT_VERSION }}"
+          $versionObj = [System.Version]::Parse($currentVersion)
+          $nextVersion = "$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)"
+          echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
       - name: Azure CLI script
         uses: azure/CLI@v1
         with:
-          azcliversion: latest
+          azcliversion: ${{ env.AZ_VERSION }}
           inlineScript: |
-            az storage blob upload-batch --destination test/project-helios/1.1${{ github.run_number }}.0 --source src/frontend/dist --auth-mode login --account-name frontenddeployments
-            az storage entity insert --auth-mode login --account-name frontenddeployments --table-name deployments --entity PartitionKey=test RowKey=1.1${{ github.run_number }}.0 Version=1.1${{ github.run_number }}.0 Timestamp=${{ github.event.repository.updated_at}} Timestamp@odata.type=Edm.DateTime
-            az storage entity replace --auth-mode login --account-name frontenddeployments --table-name deployments --entity PartitionKey=test RowKey=current Version=1.1${{ github.run_number }}.0 Timestamp=${{ github.event.repository.updated_at}} Timestamp@odata.type=Edm.DateTime
+            az storage blob upload-batch --destination test/project-helios/1.1${{ github.run_number }}.0 --source src/frontend/dist --account-name frontenddeployments
+            az storage entity insert --table-name ${{ env.TABLE_NAME}} --entity PartitionKey=${{ env.PARTITION_KEY }} RowKey=1.1${{ github.run_number }}.0 Version=1.1${{ github.run_number }}.0 Timestamp=${{ github.event.repository.updated_at}} Timestamp@odata.type=Edm.DateTime
+            az storage entity replace --table-name ${{ env.TABLE_NAME}} --entity PartitionKey=${{ env.PARTITION_KEY }} RowKey=current Version=1.1${{ github.run_number }}.0 Timestamp=${{ github.event.repository.updated_at}} Timestamp@odata.type=Edm.DateTime
