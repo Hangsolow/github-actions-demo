@@ -35,7 +35,7 @@ jobs:
           docker save -o image-cache/azure-cli.tar mcr.microsoft.com/azure-cli:latest
 
       - if: steps.image-cache.outputs.cache-hit == 'true'
-        run: docker load -i ~/image-cache/azure-cli.tar
+        run: docker load -i image-cache/azure-cli.tar
 
       - name: Az CLI login
         uses: azure/login@v1
