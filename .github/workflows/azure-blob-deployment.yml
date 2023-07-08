@@ -10,9 +10,21 @@ env:
   AZURE_STORAGE_AUTH_MODE: login
   AZURE_STORAGE_ACCOUNT: frontenddeployments
   AZ_VERSION: latest
-  PARTITION_KEY: test
+  ENVIRONMENT: test
   TABLE_NAME: deployments
+  BLOB_FOLDER: project-helios
+  DIST_FOLDER_PATH: src/frontend/dist
+  NEXT_VERSION:
 jobs:
+  test-reuseable-workflow:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Testing
+        uses: ./.github/workflows/reuseable-next-version-workflow.yml
+        with:
+          message: test
+          environment: ${{ env.ENVIRONMENT }}
   build-and-deploy:
     runs-on: ubuntu-latest
     environment:
@@ -25,27 +37,33 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - id: version
+        uses: ./.github/workflows/reuseable-next-version-workflow.yml
+        with:
+          table_name: ${{ env.TABLE_NAME }}
+          environment: ${{ env.ENVIRONMENT }} 
+      - run: echo "NEXT_VERSION=${{ steps.version.outputs.next_version }}" >> $GITHUB_ENV
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Get current version
-        uses: azure/CLI@v1
-        with:
-          azcliversion: ${{ env.AZ_VERSION }}
-          inlineScript: |
-            currentVersion=$(az storage entity show --partition-key ${{ env.PARTITION_KEY }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
-            echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
-      - name: Set next version
-        shell: pwsh
-        run: |
-          $currentVersion = ${{ env.CURRENT_VERSION }}
-          $versionObj = [System.Version]::Parse($currentVersion)
-          $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
-          echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
+      # - name: Get current version
+      #   uses: azure/CLI@v1
+      #   with:
+      #     azcliversion: ${{ env.AZ_VERSION }}
+      #     inlineScript: |
+      #       currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
+      #       echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+      # - name: Set next version
+      #   shell: pwsh
+      #   run: |
+      #     $currentVersion = ${{ env.CURRENT_VERSION }}
+      #     $versionObj = [System.Version]::Parse($currentVersion)
+      #     $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
+      #     echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
       - name: Azure CLI script
         uses: azure/CLI@v1
         with:
           azcliversion: ${{ env.AZ_VERSION }}
           inlineScript: |
-            az storage blob upload-batch --destination test/project-helios/${{ env.NEXT_VERSION }} --source src/frontend/dist
-            az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PARTITION_KEY }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
-            az storage entity replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PARTITION_KEY }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+            az storage blob upload-batch --destination ${{ env.ENVIRONMENT }}/${{ env.BLOB_FOLDER }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
+            az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+            az storage entity replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
