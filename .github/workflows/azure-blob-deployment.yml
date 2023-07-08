@@ -14,7 +14,7 @@ env:
   TABLE_NAME: deployments
   BLOB_FOLDER: project-helios
   DIST_FOLDER_PATH: src/frontend/dist
-  NEXT_VERSION:
+  NEXT_VERSION: ""
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
