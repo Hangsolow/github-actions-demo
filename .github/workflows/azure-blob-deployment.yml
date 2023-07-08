@@ -14,7 +14,7 @@ env:
   TABLE_NAME: deployments
   BLOB_FOLDER: project-helios
   DIST_FOLDER_PATH: src/frontend/dist
-  NEXT_VERSION:
+  NEXT_VERSION: ""
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - id: version
-        uses: .github/workflows/reuseable-next-version-workflow.yml
+        uses: ./.github/workflows/reuseable-next-version-workflow.yml
         with:
           table_name: ${{ env.TABLE_NAME }}
           environment: ${{ env.ENVIRONMENT }} 
