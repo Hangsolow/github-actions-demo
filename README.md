@@ -1,2 +1,2 @@
-# github-actions-demo
-Just a repo for testing github actions
+# Github Actions demo
+A repo for testing Github Actions
