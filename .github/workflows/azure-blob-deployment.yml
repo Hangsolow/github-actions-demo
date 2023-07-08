@@ -16,15 +16,6 @@ env:
   DIST_FOLDER_PATH: src/frontend/dist
   NEXT_VERSION:
 jobs:
-  test-reuseable-workflow:
-    runs-on: ubuntu-latest
-    environment: test
-    steps:
-      - name: Testing
-        uses: ./.github/workflows/reuseable-next-version-workflow.yml
-        with:
-          message: test
-          environment: ${{ env.ENVIRONMENT }}
   build-and-deploy:
     runs-on: ubuntu-latest
     environment:
