@@ -31,7 +31,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - id: version
-        uses: ./.github/actions/next-version.yml
+        uses: Hangsolow/github-actions-demo/.github/actions/next-version.yml@main
         with:
           table_name: ${{ env.TABLE_NAME }}
           environment: ${{ env.ENVIRONMENT }} 
