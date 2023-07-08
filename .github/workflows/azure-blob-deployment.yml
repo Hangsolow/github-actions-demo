@@ -15,8 +15,9 @@ env:
   BLOB_FOLDER: project-helios
   DIST_FOLDER_PATH: src/frontend/dist
   NEXT_VERSION: ""
+  CURRENT_VERSION:
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     environment:
       name: test
@@ -30,26 +31,20 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - id: version
-        uses: Hangsolow/github-actions-demo/.github/actions/next-version.yml@main
+      - name: Get current version
+        uses: azure/CLI@v1
         with:
-          table_name: ${{ env.TABLE_NAME }}
-          environment: ${{ env.ENVIRONMENT }} 
-      - run: echo "NEXT_VERSION=${{ steps.version.outputs.next_version }}" >> $GITHUB_ENV
-      # - name: Get current version
-      #   uses: azure/CLI@v1
-      #   with:
-      #     azcliversion: ${{ env.AZ_VERSION }}
-      #     inlineScript: |
-      #       currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
-      #       echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
-      # - name: Set next version
-      #   shell: pwsh
-      #   run: |
-      #     $currentVersion = ${{ env.CURRENT_VERSION }}
-      #     $versionObj = [System.Version]::Parse($currentVersion)
-      #     $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
-      #     echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
+          azcliversion: ${{ env.AZ_VERSION }}
+          inlineScript: |
+            currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
+            echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+      - name: Set next version
+        shell: pwsh
+        run: |
+          $currentVersion = ${{ env.CURRENT_VERSION }}
+          $versionObj = [System.Version]::Parse($currentVersion)
+          $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
+          echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
       - name: Azure CLI script
         uses: azure/CLI@v1
         with:
