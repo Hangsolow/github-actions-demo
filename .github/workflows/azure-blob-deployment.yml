@@ -25,7 +25,7 @@ jobs:
       - name: test environment
         id: test
         if: ${{ github.ref_name != 'main' }}
-        run: echo "env_name=test" >> $GITHUB_ENV
+        run: echo "env_name=test" >> $GITHUB_OUTPUT
 
   frontend:
     needs: find-environment
