@@ -1,5 +1,4 @@
 name: Interact with Azure ressources via OIDC
-concurrency: test
 
 on:
   push:
@@ -29,6 +28,7 @@ jobs:
 
   frontend:
     needs: find-environment
+    concurrency: ${{ needs.find-environment.outputs.env_name }}
     uses: ./.github/workflows/reuseable-deployment-workflow.yml
     with:
       environment: ${{ needs.find-environment.outputs.env_name }}
