@@ -71,10 +71,10 @@ jobs:
             echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
       - name: Increment Minor version
         if: ${{ inputs.environment == 'prod' }}
-        run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $env:GITHUB_ENV
+        run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $GITHUB_ENV
       - name: Increment Build version
         if: ${{ inputs.environment != 'prod' }}
-        run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $env:GITHUB_ENV
+        run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_ENV
       - name: Set next version
         #only run if an override_version is not given
         if: ${{ !inputs.override_version }}
