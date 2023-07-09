@@ -34,6 +34,7 @@ jobs:
       environment: ${{ needs.find-environment.outputs.env_name }}
       azure_storage_account: frontenddeployments
   frontend-sync-prod-to-test:
+    name: Sync production code to test environment 
     if: ${{ needs.find-environment.outputs.env_name == 'prod' }}
     needs: 
       - find-environment
@@ -50,6 +51,12 @@ jobs:
       - find-environment
       - frontend
     steps:
+      - name: create prod release
+        if: ${{ needs.find-environment.outputs.env_name == 'prod' }}
+        uses: actions/github-script@v6
+        with:
+          script: |
+            await github.rest.repos.createRelease({ owner: context.repo.owner, repo: context.repo.repo, tag_name: "v${{ needs.frontend.outputs.next_version }}", generate_release_notes: true });
       - name: Generate summery
         run: |
           echo "### Deployment of ${{ needs.frontend.outputs.next_version }} to ${{ needs.find-environment.outputs.env_name }} environment :rocket:" >> $GITHUB_STEP_SUMMARY
