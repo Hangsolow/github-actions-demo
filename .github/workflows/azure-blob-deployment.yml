@@ -33,6 +33,17 @@ jobs:
     with:
       environment: ${{ needs.find-environment.outputs.env_name }}
       azure_storage_account: frontenddeployments
+  frontend-sync-prod-to-test:
+    if: ${{ needs.find-environment.outputs.env_name == 'prod' }}
+    needs: 
+      - find-environment
+      - frontend
+    concurrency: test
+    uses: ./.github/workflows/reuseable-deployment-workflow.yml
+    with:
+      environment: test
+      azure_storage_account: frontenddeployments
+      override_version: ${{ needs.frontend.outputs.next_version }}
   summery:
     runs-on: ubuntu-latest
     needs:
