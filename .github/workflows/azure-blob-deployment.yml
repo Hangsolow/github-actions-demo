@@ -1,60 +1,56 @@
 name: Interact with Azure ressources via OIDC
+
 on:
   push:
     branches:
       - "test/*"
+      - main
+
 permissions:
   id-token: write
   contents: read
-env:
-  AZURE_STORAGE_AUTH_MODE: login
-  AZURE_STORAGE_ACCOUNT: frontenddeployments
-  AZ_VERSION: latest
-  ENVIRONMENT: test
-  TABLE_NAME: deployments
-  BLOB_FOLDER: project-helios
-  DIST_FOLDER_PATH: src/frontend/dist
-  NEXT_VERSION: ""
+    
 jobs:
-  build-and-deploy:
+  find-environment:
     runs-on: ubuntu-latest
-    environment:
-      name: test
-      url: https://test.await.io
+    outputs:
+      env_name: ${{ steps.prod.outputs.env_name || steps.test.outputs.env_name }}
+      
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Az CLI login
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - id: version
-        uses: .github/actions/next-version.yml
-        with:
-          table_name: ${{ env.TABLE_NAME }}
-          environment: ${{ env.ENVIRONMENT }} 
-      - run: echo "NEXT_VERSION=${{ steps.version.outputs.next_version }}" >> $GITHUB_ENV
-      # - name: Get current version
-      #   uses: azure/CLI@v1
-      #   with:
-      #     azcliversion: ${{ env.AZ_VERSION }}
-      #     inlineScript: |
-      #       currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
-      #       echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
-      # - name: Set next version
-      #   shell: pwsh
-      #   run: |
-      #     $currentVersion = ${{ env.CURRENT_VERSION }}
-      #     $versionObj = [System.Version]::Parse($currentVersion)
-      #     $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
-      #     echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
-      - name: Azure CLI script
-        uses: azure/CLI@v1
-        with:
-          azcliversion: ${{ env.AZ_VERSION }}
-          inlineScript: |
-            az storage blob upload-batch --destination ${{ env.ENVIRONMENT }}/${{ env.BLOB_FOLDER }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
-            az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
-            az storage entity replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+      - name: production environment
+        id: prod
+        if: ${{ github.ref_name == 'main' }}
+        run: echo "env_name=prod" >> $GITHUB_OUTPUT
+      - name: test environment
+        id: test
+        if: ${{ github.ref_name != 'main' }}
+        run: echo "env_name=test" >> $GITHUB_OUTPUT
+
+  frontend:
+    needs: find-environment
+    concurrency: ${{ needs.find-environment.outputs.env_name }}
+    uses: ./.github/workflows/reuseable-deployment-workflow.yml
+    with:
+      environment: ${{ needs.find-environment.outputs.env_name }}
+      azure_storage_account: frontenddeployments
+  frontend-sync-prod-to-test:
+    if: ${{ needs.find-environment.outputs.env_name == 'prod' }}
+    needs: 
+      - find-environment
+      - frontend
+    concurrency: test
+    uses: ./.github/workflows/reuseable-deployment-workflow.yml
+    with:
+      environment: test
+      azure_storage_account: frontenddeployments
+      override_version: ${{ needs.frontend.outputs.next_version }}
+  summery:
+    runs-on: ubuntu-latest
+    needs:
+      - find-environment
+      - frontend
+    steps:
+      - name: Generate summery
+        run: |
+          echo "### Deployment of ${{ needs.frontend.outputs.next_version }} to ${{ needs.find-environment.outputs.env_name }} environment :rocket:" >> $GITHUB_STEP_SUMMARY
+
