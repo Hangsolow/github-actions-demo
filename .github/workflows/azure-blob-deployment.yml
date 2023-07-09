@@ -12,11 +12,26 @@ permissions:
   contents: read
     
 jobs:
+  find-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      env_name: ${{ steps.prod.outputs.env_name || steps.test.outputs.env_name }}
+      
+    steps:
+      - name: production environment
+        id: prod
+        if: ${{ github.ref_name == 'main' }}
+        run: echo "env_name=prod" >> $GITHUB_OUTPUT
+      - name: test environment
+        id: test
+        if: ${{ github.ref_name != 'main' }}
+        run: echo "env_name=test" >> $GITHUB_ENV
+
   frontend:
+    needs: find-environment
     uses: ./.github/workflows/reuseable-deployment-workflow.yml
     with:
-      environment: ${{ vars.ENVIRONMENT_NAME }}
-      environment_url: ${{ vars.ENVIRONMENT_URL }}
+      environment: ${{ needs.find-environment.outputs.env_name }}
   summery:
     runs-on: ubuntu-latest
     needs: frontend

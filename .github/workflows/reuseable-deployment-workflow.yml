@@ -12,9 +12,6 @@ on:
       environment:
         type: string
         required: true
-      environment_url:
-        type: string
-        required: true
       project_name:
         type: string
         description: The project name used for deployment, will default to repo name
@@ -48,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: 
       name: ${{ inputs.environment }}
-      url: ${{ inputs.environment_url }}  
+      url: ${{  vars.ENVIRONMENT_URL || github.event.repository.deployments_url }}  
     outputs:
       next_version: ${{ steps.version.outputs.next_version || steps.override_version.outputs.next_version }}
     steps:
