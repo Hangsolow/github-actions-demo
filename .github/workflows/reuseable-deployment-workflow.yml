@@ -1,0 +1,93 @@
+name: Deployment Workflow
+run-name: Deploy 
+on: 
+  workflow_call:
+    inputs:
+      azure_storage_account:
+        type: string
+        description: the azure storage account 
+      table_name:
+        type: string
+        description: The table name
+      environment:
+        type: string
+        required: true
+      project_name:
+        type: string
+        description: The project name used for deployment, will default to repo name
+        default: ${{ github.event.repository.name }}
+      dist_folder_path:
+        type: string
+        description: The path to the frontend Dist folder to deploy, will default to  'src/frontend/dist'
+        default: src/frontend/dist
+      override_version:
+        type: string
+        description: The version to use when deploying, will override the version from table
+    outputs:
+      next_version: 
+        value: ${{ jobs.deploy.outputs.next_version }}
+
+permissions:
+  id-token: write
+  contents: read
+env:
+  AZURE_STORAGE_AUTH_MODE: login
+  AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account || 'frontenddeployments' }}
+  AZ_VERSION: latest
+  ENVIRONMENT: ${{ inputs.environment }}
+  TABLE_NAME: ${{ inputs.table_name || 'deployments' }}
+  BLOB_FOLDER: ${{ inputs.project_name }}
+  DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
+  NEXT_VERSION: ""
+  CURRENT_VERSION:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      next_version: ${{ steps.version.outputs.next_version || steps.override_version.outputs.next_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Az CLI login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Get current version
+        #only run if an override_version is not given
+        if: ${{ !inputs.override_version }}
+        uses: azure/CLI@v1
+        with:
+          azcliversion: ${{ env.AZ_VERSION }}
+          inlineScript: |
+            currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
+            echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+      - name: Set next version
+        #only run if an override_version is not given
+        if: ${{ !inputs.override_version }}
+        id: version
+        shell: pwsh
+        run: |
+          $currentVersion = ${{ env.CURRENT_VERSION }}
+          $versionObj = [System.Version]::Parse($currentVersion)
+          $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
+          echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
+          echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
+      - name: Set override version
+        #only run if an override_version is given
+        if: ${{ inputs.override_version }}
+        id: override_version
+        shell: pwsh
+        run: |
+          echo "NEXT_VERSION=${{ inputs.override_version }}" >> $env:GITHUB_ENV
+          echo "next_version=${{ inputs.override_version }}" >> $env:GITHUB_OUTPUT
+      - name: Azure CLI script
+        uses: azure/CLI@v1
+        with:
+          azcliversion: ${{ env.AZ_VERSION }}
+          inlineScript: |
+            az storage blob upload-batch --destination ${{ env.ENVIRONMENT }}/${{ env.BLOB_FOLDER }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
+            az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+            az storage entity replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
