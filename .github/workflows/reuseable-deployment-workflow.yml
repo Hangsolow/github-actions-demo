@@ -5,10 +5,12 @@ on:
     inputs:
       azure_storage_account:
         type: string
-        description: the azure storage account 
+        description: the azure storage account
+        required: true 
       table_name:
         type: string
         description: The table name
+        default: deployments
       environment:
         type: string
         required: true
@@ -32,20 +34,21 @@ permissions:
   contents: read
 env:
   AZURE_STORAGE_AUTH_MODE: login
-  AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account || 'frontenddeployments' }}
+  AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
   AZ_VERSION: latest
   ENVIRONMENT: ${{ inputs.environment }}
-  TABLE_NAME: ${{ inputs.table_name || 'deployments' }}
+  TABLE_NAME: ${{ inputs.table_name }}
   BLOB_FOLDER: ${{ inputs.project_name }}
   DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
   NEXT_VERSION:
   CURRENT_VERSION:
+  VERSION_INCR_FUNC:
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: 
       name: ${{ inputs.environment }}
-      url: ${{  vars.ENVIRONMENT_URL || github.event.repository.deployments_url }}  
+      url: ${{ vars.ENVIRONMENT_URL }}  
     outputs:
       next_version: ${{ steps.version.outputs.next_version || steps.override_version.outputs.next_version }}
     steps:
@@ -66,6 +69,12 @@ jobs:
           inlineScript: |
             currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
             echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+      - name: Increment Minor version
+        if: ${{ inputs.environment == 'prod' }}
+        run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $env:GITHUB_ENV
+      - name: Increment Build version
+        if: ${{ inputs.environment != 'prod' }}
+        run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $env:GITHUB_ENV
       - name: Set next version
         #only run if an override_version is not given
         if: ${{ !inputs.override_version }}
@@ -74,7 +83,7 @@ jobs:
         run: |
           $currentVersion = ${{ env.CURRENT_VERSION }}
           $versionObj = [System.Version]::Parse($currentVersion)
-          $nextVersion = "$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)"
+          $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
           echo "NEXT_VERSION=$nextVersion" >> $env:GITHUB_ENV
           echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
       - name: Set override version
