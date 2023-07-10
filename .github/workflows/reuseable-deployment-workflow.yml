@@ -28,10 +28,11 @@ on:
     outputs:
       next_version: 
         value: ${{ jobs.deploy.outputs.next_version }}
-
+#
 permissions:
   id-token: write
   contents: read
+
 env:
   AZURE_STORAGE_AUTH_MODE: login
   AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
@@ -40,6 +41,7 @@ env:
   TABLE_NAME: ${{ inputs.table_name }}
   BLOB_FOLDER: ${{ inputs.project_name }}
   DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
+  #these are placeholders for env variables that are being set in steps, here for the autocomplete
   NEXT_VERSION:
   CURRENT_VERSION:
   VERSION_INCR_FUNC:
@@ -52,8 +54,11 @@ jobs:
     outputs:
       next_version: ${{ steps.version.outputs.next_version || steps.override_version.outputs.next_version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Download dist
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-dist
+          path: ${{ env.DIST_FOLDER_PATH }}
       - name: Az CLI login
         uses: azure/login@v1
         with:

@@ -1,5 +1,5 @@
 name: Interact with Azure ressources via OIDC
-
+run-name: Deploy to Azure 
 on:
   push:
     branches:
@@ -21,9 +21,22 @@ jobs:
         id: test
         if: ${{ github.ref_name != 'main' }}
         run: echo "env_name=test" >> $GITHUB_OUTPUT
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-dist
+          path: src/frontend/dist/
+          if-no-files-found: error
 
   frontend:
-    needs: find-environment
+    needs: 
+      - find-environment
+      - build
     permissions:
       id-token: write
       contents: read
