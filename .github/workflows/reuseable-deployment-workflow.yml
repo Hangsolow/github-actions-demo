@@ -121,4 +121,4 @@ jobs:
           inlineScript: |
             az storage blob upload-batch --destination ${{ env.ENVIRONMENT }}/${{ env.BLOB_FOLDER }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
             az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
-            az storage entity insert --if-exists replace -table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+            az storage entity insert --if-exists replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.ENVIRONMENT }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
