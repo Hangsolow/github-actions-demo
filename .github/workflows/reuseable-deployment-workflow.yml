@@ -29,6 +29,10 @@ on:
       override_version:
         type: string
         description: The version to use when deploying, will override the version from table
+      seed_version:
+        type: string
+        description: if there is no current row in the table then this version will be used, default is '1.0.0'
+        default: '1.0.0'
     outputs:
       next_version: 
         value: ${{ jobs.deploy.outputs.next_version }}
@@ -45,6 +49,7 @@ env:
   TABLE_NAME: ${{ inputs.table_name }}
   BLOB_FOLDER: ${{ inputs.project_name }}
   DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
+  OVERRIDE_VERSION: ${{ inputs.override_version }}
   #these are placeholders for env variables that are being set in steps, here for the autocomplete
   NEXT_VERSION:
   CURRENT_VERSION:
@@ -78,6 +83,10 @@ jobs:
           inlineScript: |
             currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
             echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+      - name: Use seed version
+        #only run if both current version and override version is missing
+        if: ${{ !env.CURRENT_VERSION && !inputs.override_version }}
+        run: echo "OVERRIDE_VERSION=${{ inputs.seed_version }}" >> "$GITHUB_ENV"
       - name: Increment Minor version
         if: ${{ inputs.environment == 'prod' }}
         run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $GITHUB_ENV
@@ -86,7 +95,7 @@ jobs:
         run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_ENV
       - name: Generate next version
         #only run if an override_version is not given
-        if: ${{ !inputs.override_version }}
+        if: ${{ !env.OVERRIDE_VERSION }}
         id: version
         shell: pwsh
         run: |
@@ -97,12 +106,12 @@ jobs:
           echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
       - name: Set override version
         #only run if an override_version is given
-        if: ${{ inputs.override_version }}
+        if: ${{ env.OVERRIDE_VERSION }}
         id: override_version
         shell: pwsh
         run: |
-          echo "NEXT_VERSION=${{ inputs.override_version }}" >> $env:GITHUB_ENV
-          echo "next_version=${{ inputs.override_version }}" >> $env:GITHUB_OUTPUT
+          echo "NEXT_VERSION=${{ env.OVERRIDE_VERSION }}" >> $env:GITHUB_ENV
+          echo "next_version=${{ env.OVERRIDE_VERSION }}" >> $env:GITHUB_OUTPUT
       - name: Deploy artifact to azure storage
         uses: azure/CLI@v1
         with:
