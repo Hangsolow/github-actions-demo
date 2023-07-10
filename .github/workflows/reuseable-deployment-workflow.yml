@@ -22,6 +22,10 @@ on:
         type: string
         description: The path to the frontend Dist folder to deploy, will default to  'src/frontend/dist'
         default: src/frontend/dist
+      deployment_artifact_name:
+        type: string
+        description: the name of the artifact to deploy
+        default: frontend-dist
       override_version:
         type: string
         description: The version to use when deploying, will override the version from table
@@ -57,7 +61,7 @@ jobs:
       - name: Download dist
         uses: actions/download-artifact@v3
         with:
-          name: frontend-dist
+          name: ${{ inputs.deployment_artifact_name }}
           path: ${{ env.DIST_FOLDER_PATH }}
       - name: Az CLI login
         uses: azure/login@v1
@@ -80,7 +84,7 @@ jobs:
       - name: Increment Build version
         if: ${{ inputs.environment != 'prod' }}
         run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_ENV
-      - name: Set next version
+      - name: Generate next version
         #only run if an override_version is not given
         if: ${{ !inputs.override_version }}
         id: version
@@ -99,7 +103,7 @@ jobs:
         run: |
           echo "NEXT_VERSION=${{ inputs.override_version }}" >> $env:GITHUB_ENV
           echo "next_version=${{ inputs.override_version }}" >> $env:GITHUB_OUTPUT
-      - name: Azure CLI script
+      - name: Deploy artifact to azure storage
         uses: azure/CLI@v1
         with:
           azcliversion: ${{ env.AZ_VERSION }}

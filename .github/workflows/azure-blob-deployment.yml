@@ -21,6 +21,7 @@ jobs:
         id: test
         if: ${{ github.ref_name != 'main' }}
         run: echo "env_name=test" >> $GITHUB_OUTPUT
+        
   build:
     runs-on: ubuntu-latest
     steps:
