@@ -5,11 +5,7 @@ on:
     branches:
       - "test/*"
       - main
-
-permissions:
-  id-token: write
-  contents: read
-    
+  
 jobs:
   find-environment:
     runs-on: ubuntu-latest
@@ -28,12 +24,18 @@ jobs:
 
   frontend:
     needs: find-environment
+    permissions:
+      id-token: write
+      contents: read
     concurrency: ${{ needs.find-environment.outputs.env_name }}
     uses: ./.github/workflows/reuseable-deployment-workflow.yml
     with:
       environment: ${{ needs.find-environment.outputs.env_name }}
       azure_storage_account: frontenddeployments
   frontend-sync-prod-to-test:
+    permissions:
+      id-token: write
+      contents: read
     name: Sync production code to test environment 
     if: ${{ needs.find-environment.outputs.env_name == 'prod' }}
     needs: 
@@ -46,6 +48,8 @@ jobs:
       azure_storage_account: frontenddeployments
       override_version: ${{ needs.frontend.outputs.next_version }}
   summery:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     needs:
       - find-environment
