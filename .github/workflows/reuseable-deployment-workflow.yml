@@ -75,8 +75,10 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
       - name: Get current version
+        id: current_version
         #only run if an override_version is not given
         if: ${{ !inputs.override_version }}
+        continue-on-error: true 
         uses: azure/CLI@v1
         with:
           azcliversion: ${{ env.AZ_VERSION }}
@@ -85,7 +87,7 @@ jobs:
             echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
       - name: Use seed version
         #only run if both current version and override version is missing
-        if: ${{ !env.CURRENT_VERSION && !inputs.override_version }}
+        if: ${{ steps.current_version.outcome == 'failure' && !inputs.override_version }}
         run: echo "OVERRIDE_VERSION=${{ inputs.seed_version }}" >> "$GITHUB_ENV"
       - name: Increment Minor version
         if: ${{ inputs.environment == 'prod' }}
