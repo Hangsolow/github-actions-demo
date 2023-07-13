@@ -91,7 +91,7 @@ jobs:
       - name: set app settings to env
         shell: pwsh
         run: |
-          $settings = ${{ env.APPCONFIG_SETTINGS }}
+          $settings = ${{ env.APPCONFIG_SETTINGS || '[]' }}
           $settings | ConvertFrom-Json | foreach -Process { echo "$($_.key)=$($_.value)" >> $env:GITHUB_ENV }
       - name: Use seed version
         #only run if both current version and override version is missing
