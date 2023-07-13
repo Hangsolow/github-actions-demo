@@ -1,12 +1,12 @@
 name: Deployment Workflow
-run-name: Deploy 
-on: 
+run-name: Deploy
+on:
   workflow_call:
     inputs:
       azure_storage_account:
         type: string
         description: the azure storage account
-        required: true 
+        required: true
       table_name:
         type: string
         description: The table name
@@ -32,9 +32,9 @@ on:
       seed_version:
         type: string
         description: if there is no current row in the table then this version will be used, default is '1.0.0'
-        default: '1.0.0'
+        default: "1.0.0"
     outputs:
-      next_version: 
+      next_version:
         value: ${{ jobs.deploy.outputs.next_version }}
 #
 permissions:
@@ -50,6 +50,7 @@ env:
   BLOB_FOLDER: ${{ inputs.project_name }}
   DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
   OVERRIDE_VERSION: ${{ inputs.override_version }}
+  APP_CONFIG_NAME: testappconfigg543
   #these are placeholders for env variables that are being set in steps, here for the autocomplete
   NEXT_VERSION:
   CURRENT_VERSION:
@@ -57,9 +58,9 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: 
+    environment:
       name: ${{ inputs.environment }}
-      url: ${{ vars.ENVIRONMENT_URL }}  
+      url: ${{ vars.ENVIRONMENT_URL }}
     outputs:
       next_version: ${{ steps.version.outputs.next_version || steps.override_version.outputs.next_version }}
     steps:
@@ -78,13 +79,20 @@ jobs:
         id: current_version
         #only run if an override_version is not given
         if: ${{ !inputs.override_version }}
-        continue-on-error: true 
+        continue-on-error: true
         uses: azure/CLI@v1
         with:
           azcliversion: ${{ env.AZ_VERSION }}
           inlineScript: |
             currentVersion=$(az storage entity show --partition-key ${{ env.ENVIRONMENT }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
             echo "CURRENT_VERSION=$currentVersion" >> "$GITHUB_ENV"
+            settings=$(az appconfig kv list --name ${{ env.APP_CONFIG_NAME }} --label ${{ env.ENVIRONMENT }} --fields key value)
+            echo "APPCONFIG_SETTINGS=$settings" >> "$GITHUB_ENV"
+      - name: set app settings to env
+        shell: pwsh
+        run: |
+          $settings = ${{ env.APPCONFIG_SETTINGS }}
+          $settings | ConvertFrom-Json | foreach -Process { echo "$($_.key)=$($_.value)" >> $env:GITHUB_ENV }
       - name: Use seed version
         #only run if both current version and override version is missing
         if: ${{ steps.current_version.outcome == 'failure' && !inputs.override_version }}
