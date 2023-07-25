@@ -1,0 +1,33 @@
+name: Test bicep files
+on:
+  push:
+    branches:
+      - feature/*
+      - test/*
+    paths:
+      - bicep/**
+env:
+  AZURE_STORAGE_AUTH_MODE: login
+  RESOURCE_GROUP: rg-github-bicep
+
+# permissions for the azure/login step
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    environment: test
+    steps:
+      - name: Az CLI login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy artifact to azure storage
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az deployment group what-if --name Test-Env-Deployment --resource-group ${{ env.RESOURCE_GROUP }} --template-file bicep\main.bicep --parameters bicep\test.bicepparam

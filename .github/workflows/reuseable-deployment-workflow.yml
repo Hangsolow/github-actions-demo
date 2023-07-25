@@ -36,7 +36,7 @@ on:
     outputs:
       next_version:
         value: ${{ jobs.deploy.outputs.next_version }}
-#
+# permissions for the azure/login step
 permissions:
   id-token: write
   contents: read
