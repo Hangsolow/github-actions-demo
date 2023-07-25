@@ -26,7 +26,9 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Deploy artifact to azure storage
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Create bicep what-if deployment
         uses: azure/CLI@v1
         with:
           inlineScript: |
