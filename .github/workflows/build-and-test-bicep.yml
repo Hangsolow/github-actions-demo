@@ -30,4 +30,4 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            az deployment group what-if --name Test-Env-Deployment --resource-group ${{ env.RESOURCE_GROUP }} --template-file bicep\main.bicep --parameters bicep\test.bicepparam
+            az deployment group what-if --name Test-Env-Deployment --resource-group ${{ env.RESOURCE_GROUP }} --template-file bicep/main.bicep --parameters bicep/test.bicepparam
