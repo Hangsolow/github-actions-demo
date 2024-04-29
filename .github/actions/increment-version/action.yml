@@ -55,7 +55,7 @@ runs:
         echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
       env:
         CURRENT_VERSION:
-          ${{ steps.select-version.outputs.currentVersion }}
+          ${{ steps.format-version.outputs.current_version }}
           # Determines the value of the VERSION_INCR_FUNC variable based on the outputs of the previous steps.
           # it will use the VERSION_INCR_FUNC from the step with the highest priority (increment-major, increment-minor, increment-patch, increment-none).
         VERSION_INCR_FUNC: ${{ steps.increment-major.outputs.VERSION_INCR_FUNC || steps.increment-minor.outputs.VERSION_INCR_FUNC || steps.increment-patch.outputs.VERSION_INCR_FUNC || steps.increment-none.outputs.VERSION_INCR_FUNC }}
