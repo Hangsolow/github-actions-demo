@@ -47,6 +47,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+    environment: ${{ needs.find-environment.outputs.env_name }}
     concurrency: ${{ needs.find-environment.outputs.env_name }}
     outputs:
       next_version: ${{ steps.fe-deploy.outputs.version }}
@@ -59,6 +60,12 @@ jobs:
         with:
           name: frontend-dist
           path: src/frontend/dist/
+      - name: login to azure
+        uses: azure/login@v2
+        with:
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
       - name: Deploy to Azure
         id: fe-deploy
         uses: ./.github/actions/fe-deploy
@@ -77,6 +84,7 @@ jobs:
     needs:
       - find-environment
       - frontend
+    environment: test
     concurrency: test
     steps:
       # must checkout the code to get the local actions
@@ -87,10 +95,15 @@ jobs:
         with:
           name: frontend-dist
           path: src/frontend/dist/
+      - name: login to azure
+        uses: azure/login@v2
+        with:
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
       - name: Sync production code to test environment
         uses: ./.github/actions/fe-deploy
         with:
-          environment: test
           azure_storage_account: frontenddeployments
           blob_folder: test
   summery:
