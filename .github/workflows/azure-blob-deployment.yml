@@ -73,6 +73,7 @@ jobs:
           increment_mode: ${{ needs.find-environment.outputs.version_increment_mode }}
           azure_storage_account: frontenddeployments
           blob_folder: ${{ needs.find-environment.outputs.env_name }}
+          table_name: deployments4${{ needs.find-environment.outputs.env_name }}
 
   frontend-sync-prod-to-test:
     runs-on: ubuntu-latest
@@ -106,6 +107,7 @@ jobs:
         with:
           azure_storage_account: frontenddeployments
           blob_folder: test
+          table_name: deployments4test
   summery:
     permissions:
       contents: write
