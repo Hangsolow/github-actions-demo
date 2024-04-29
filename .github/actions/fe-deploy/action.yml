@@ -52,6 +52,7 @@ runs:
           echo "current_version=$currentVersion" >> "$GITHUB_OUTPUT"
       env:
         AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
+        AZURE_STORAGE_AUTH_MODE: login
         TABLE_NAME: ${{ inputs.table_name }}
         PROJECT_NAME: ${{ inputs.project_name }}
     - name: Use seed version
@@ -95,6 +96,8 @@ runs:
           az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
           az storage entity insert --if-exists replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
       env:
+        AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
+        AZURE_STORAGE_AUTH_MODE: login
         PROJECT_NAME: ${{ inputs.project_name }}
         BLOB_FOLDER: ${{ inputs.blob_folder }}
         DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
