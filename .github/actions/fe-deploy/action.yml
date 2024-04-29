@@ -82,7 +82,7 @@ runs:
       id: version
       shell: pwsh
       run: |
-        $currentVersion = ${{ env.CURRENT_VERSION }}
+        $currentVersion = ${{ format('{0}', env.CURRENT_VERSION) }}
         $versionObj = [System.Version]::Parse($currentVersion)
         $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
         echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
