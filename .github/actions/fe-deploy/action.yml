@@ -20,7 +20,7 @@ inputs:
     description: The version to use when deploying, will override the version from table
   seed_version:
     description: if there is no current row in the table then this version will be used, default is '1.0.0'
-    default: '1.0.0'
+    default: "1.0.0"
   increment_mode:
     description: The mode to increment the version, can be 'major', 'minor' or 'patch'
     default: patch
@@ -80,7 +80,7 @@ runs:
       id: version
       shell: pwsh
       run: |
-        $currentVersion = ${{ env.CURRENT_VERSION }}
+        $currentVersion = "${{ env.CURRENT_VERSION }}"
         $versionObj = [System.Version]::Parse($currentVersion)
         $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
         echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
