@@ -1,27 +1,32 @@
 name: Interact with Azure ressources via OIDC
-run-name: Deploy to Azure 
+run-name: Deploy to Azure
 on:
   push:
     branches:
       - "test/*"
       - main
-  
+env:
+  FRONTEND_STORAGE_ACCOUNT: frontenddeployments
 jobs:
   find-environment:
     runs-on: ubuntu-latest
     outputs:
       env_name: ${{ steps.prod.outputs.env_name || steps.test.outputs.env_name }}
-      
+      version_increment_mode: ${{ steps.prod.outputs.version_increment_mode || steps.test.outputs.version_increment_mode }}
     steps:
       - name: production environment
         id: prod
         if: ${{ github.ref_name == 'main' }}
-        run: echo "env_name=prod" >> $GITHUB_OUTPUT
+        run: |
+          echo "env_name=prod" >> $GITHUB_OUTPUT
+          echo "version_increment_mode=minor" >> $GITHUB_OUTPUT
       - name: test environment
         id: test
         if: ${{ github.ref_name != 'main' }}
-        run: echo "env_name=test" >> $GITHUB_OUTPUT
-        
+        run: |
+          echo "env_name=test" >> $GITHUB_OUTPUT
+          echo "version_increment_mode=patch" >> $GITHUB_OUTPUT
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -35,32 +40,59 @@ jobs:
           if-no-files-found: error
 
   frontend:
-    needs: 
+    runs-on: ubuntu-latest
+    needs:
       - find-environment
       - build
     permissions:
       id-token: write
       contents: read
     concurrency: ${{ needs.find-environment.outputs.env_name }}
-    uses: ./.github/workflows/reuseable-deployment-workflow.yml
-    with:
-      environment: ${{ needs.find-environment.outputs.env_name }}
-      azure_storage_account: frontenddeployments
+    outputs:
+      next_version: ${{ steps.fe-deploy.outputs.version }}
+    steps:
+      # must checkout the code to get the local actions
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-dist
+          path: src/frontend/dist/
+      - name: Deploy to Azure
+        id: fe-deploy
+        uses: ./.github/actions/fe-deploy
+        with:
+          increment_mode: ${{ needs.find-environment.outputs.version_increment_mode }}
+          azure_storage_account: frontenddeployments
+          blob_folder: ${{ needs.find-environment.outputs.env_name }}
+
   frontend-sync-prod-to-test:
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-    name: Sync production code to test environment 
+    name: Sync production code to test environment
     if: ${{ needs.find-environment.outputs.env_name == 'prod' }}
-    needs: 
+    needs:
       - find-environment
       - frontend
     concurrency: test
-    uses: ./.github/workflows/reuseable-deployment-workflow.yml
-    with:
-      environment: test
-      azure_storage_account: frontenddeployments
-      override_version: ${{ needs.frontend.outputs.next_version }}
+    steps:
+      # must checkout the code to get the local actions
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: frontend-dist
+          path: src/frontend/dist/
+      - name: Sync production code to test environment
+        uses: ./.github/actions/fe-deploy
+        with:
+          environment: test
+          azure_storage_account: frontenddeployments
+          blob_folder: test
   summery:
     permissions:
       contents: write
@@ -78,4 +110,3 @@ jobs:
       - name: Generate summery
         run: |
           echo "### Deployment of ${{ needs.frontend.outputs.next_version }} to ${{ needs.find-environment.outputs.env_name }} environment :rocket:" >> $GITHUB_STEP_SUMMARY
-

@@ -1,0 +1,102 @@
+name: Deploy frontend to azure storage
+description: Deploy the frontend to azure storage and update the version in a table
+inputs:
+  azure_storage_account:
+    description: the azure storage account
+    required: true
+  table_name:
+    description: The table name
+    default: deployments
+  project_name:
+    description: The project name used for deployment, will default to repo name
+    default: ${{ github.event.repository.name }}
+  dist_folder_path:
+    description: The path to the frontend Dist folder to deploy, will default to  'src/frontend/dist'
+    default: src/frontend/dist
+  deployment_artifact_name:
+    description: the name of the artifact to deploy
+    default: frontend-dist
+  override_version:
+    description: The version to use when deploying, will override the version from table
+  seed_version:
+    description: if there is no current row in the table then this version will be used, default is '1.0.0'
+    default: '1.0.0'
+  increment_mode:
+    description: The mode to increment the version, can be 'major', 'minor' or 'patch'
+    default: patch
+  blob_folder:
+    description: The folder in the blob storage to deploy to
+    default: ${{ github.event.repository.name }}
+  az_cli_version:
+    description: The version of the azure cli to use, defaults to 'latest'
+    default: latest
+outputs:
+  version:
+    value: ${{ steps.version.outputs.next_version }}
+    description: The version that was used for deployment
+
+author: "Alex Boesen"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get current version from azure table
+      id: get-version
+      if: ${{ inputs.override_version == null }}
+      continue-on-error: true
+      uses: azure/CLI@v2
+      with:
+        azcliversion: ${{ inputs.az_cli_version }}
+        inlineScript: |
+          currentVersion=$(az storage entity show --partition-key ${{ env.PROJECT_NAME }} --row-key current --table-name ${{ env.TABLE_NAME}} --query Version)
+          echo "current_version=$currentVersion" >> "$GITHUB_OUTPUT"
+      env:
+        AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
+        TABLE_NAME: ${{ inputs.table_name }}
+        PROJECT_NAME: ${{ inputs.project_name }}
+    - name: Use seed version
+      id: seed-version
+      #only run if both current version and override version is missing
+      if: ${{ steps.get-version.outcome == 'failure' && !inputs.override_version }}
+      shell: bash
+      run: echo "override_version=${{ inputs.seed_version }}" >> "$GITHUB_OUTPUT"
+    - name: Increment Major version
+      id: increment-major
+      if: ${{ inputs.increment_mode == 'major' }}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major + 1).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
+    - name: Increment Minor version
+      id: increment-minor
+      if: ${{ inputs.increment_mode == 'minor' }}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $GITHUB_OUTPUT
+    - name: Increment Patch version
+      id: increment-patch
+      if: ${{ inputs.increment_mode == 'patch'}}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_OUTPUT
+    - name: Generate next version
+      id: version
+      shell: pwsh
+      run: |
+        $currentVersion = ${{ env.CURRENT_VERSION }}
+        $versionObj = [System.Version]::Parse($currentVersion)
+        $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
+        echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
+      env:
+        CURRENT_VERSION: ${{ steps.seed-version.outputs.override_version || inputs.override_version || steps.get-version.outputs.current_version }}
+        VERSION_INCR_FUNC: ${{ steps.increment-major.outputs.VERSION_INCR_FUNC || steps.increment-minor.outputs.VERSION_INCR_FUNC || steps.increment-patch.outputs.VERSION_INCR_FUNC }}
+    - name: Deploy artifact to azure storage
+      uses: azure/CLI@v2
+      with:
+        azcliversion: ${{ inputs.az_cli_version }}
+        inlineScript: |
+          az storage blob upload-batch --destination ${{ env.BLOB_FOLDER }}/${{ env.PROJECT_NAME }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
+          az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+          az storage entity insert --if-exists replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+      env:
+        PROJECT_NAME: ${{ inputs.project_name }}
+        BLOB_FOLDER: ${{ inputs.blob_folder }}
+        DIST_FOLDER_PATH: ${{ inputs.dist_folder_path }}
+        NEXT_VERSION: ${{ steps.version.outputs.next_version }}
+        TABLE_NAME: ${{ inputs.table_name }}
