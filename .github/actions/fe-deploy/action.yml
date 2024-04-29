@@ -60,7 +60,7 @@ runs:
       #only run if both current version and override version is missing
       if: ${{ steps.get-version.outcome == 'failure' && !inputs.override_version }}
       shell: bash
-      run: echo "override_version=${{ inputs.seed_version }}" >> "$GITHUB_OUTPUT"
+      run: echo "override_version='${{ inputs.seed_version }}'" >> "$GITHUB_OUTPUT"
     - name: Increment Major version
       id: increment-major
       if: ${{ inputs.increment_mode == 'major' }}
@@ -80,7 +80,7 @@ runs:
       id: version
       shell: pwsh
       run: |
-        $currentVersion = "${{ env.CURRENT_VERSION }}"
+        $currentVersion = ${{ env.CURRENT_VERSION }}
         $versionObj = [System.Version]::Parse($currentVersion)
         $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
         echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
