@@ -108,6 +108,9 @@ jobs:
           azure_storage_account: frontenddeployments
           blob_folder: test
           table_name: deployments4test
+          override_version: ${{ needs.frontend.outputs.next_version }}
+          # because we are syncing from prod to test and we want the version to be incremented by minor
+          increment_mode: minor
   summery:
     permissions:
       contents: write
