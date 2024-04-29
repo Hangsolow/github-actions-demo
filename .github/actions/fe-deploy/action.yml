@@ -13,19 +13,16 @@ inputs:
   dist_folder_path:
     description: The path to the frontend Dist folder to deploy, will default to  'src/frontend/dist'
     default: src/frontend/dist
-  deployment_artifact_name:
-    description: the name of the artifact to deploy
-    default: frontend-dist
   override_version:
     description: The version to use when deploying, will override the version from table
   seed_version:
     description: if there is no current row in the table then this version will be used, default is '1.0.0'
     default: "1.0.0"
   increment_mode:
-    description: The mode to increment the version, can be 'major', 'minor' or 'patch'
+    description: The mode to increment the version, can be 'major', 'minor', 'patch' or 'none'
     default: patch
   blob_folder:
-    description: The folder in the blob storage to deploy to
+    description: The folder in the blob storage to deploy to, defaults to the repo name
     default: ${{ github.event.repository.name }}
   az_cli_version:
     description: The version of the azure cli to use, defaults to 'latest'
@@ -60,7 +57,7 @@ runs:
       #only run if both current version and override version is missing
       if: ${{ steps.get-version.outcome == 'failure' && !inputs.override_version }}
       shell: bash
-      run: echo "override_version=${{ inputs.seed_version }}" >> "$GITHUB_OUTPUT"
+      run: echo "override_version='${{ inputs.seed_version }}'" >> "$GITHUB_OUTPUT"
     - name: Increment Major version
       id: increment-major
       if: ${{ inputs.increment_mode == 'major' }}
@@ -76,17 +73,26 @@ runs:
       if: ${{ inputs.increment_mode == 'patch'}}
       shell: bash
       run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_OUTPUT
+    - name: No Increment version
+      id: increment-none
+      if: ${{ inputs.increment_mode == 'none'}}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
     - name: Generate next version
       id: version
       shell: pwsh
       run: |
-        $currentVersion = "${{ env.CURRENT_VERSION }}"
+        $currentVersion = ${{ env.CURRENT_VERSION }}
         $versionObj = [System.Version]::Parse($currentVersion)
         $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
         echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
       env:
-        CURRENT_VERSION: ${{ steps.seed-version.outputs.override_version || inputs.override_version || steps.get-version.outputs.current_version }}
-        VERSION_INCR_FUNC: ${{ steps.increment-major.outputs.VERSION_INCR_FUNC || steps.increment-minor.outputs.VERSION_INCR_FUNC || steps.increment-patch.outputs.VERSION_INCR_FUNC }}
+        CURRENT_VERSION:
+          ${{ steps.seed-version.outputs.override_version || inputs.override_version || steps.get-version.outputs.current_version }}
+          # Determines the value of the VERSION_INCR_FUNC variable based on the outputs of the previous steps.
+          # If the current_version is not null, it will use the VERSION_INCR_FUNC from the increment-none step.
+          # Otherwise, it will use the VERSION_INCR_FUNC from the step with the highest priority (increment-major, increment-minor, increment-patch, increment-none).
+        VERSION_INCR_FUNC: ${{ steps.seed_version.outputs.current_version != null && steps.increment-none.outputs.VERSION_INCR_FUNC || steps.increment-major.outputs.VERSION_INCR_FUNC || steps.increment-minor.outputs.VERSION_INCR_FUNC || steps.increment-patch.outputs.VERSION_INCR_FUNC || steps.increment-none.outputs.VERSION_INCR_FUNC }}
     - name: Deploy artifact to azure storage
       uses: azure/CLI@v2
       with:

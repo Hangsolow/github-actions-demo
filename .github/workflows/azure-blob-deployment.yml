@@ -31,9 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: src/frontend/dist/
@@ -54,9 +54,9 @@ jobs:
     steps:
       # must checkout the code to get the local actions
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: frontend-dist
           path: src/frontend/dist/
@@ -73,6 +73,7 @@ jobs:
           increment_mode: ${{ needs.find-environment.outputs.version_increment_mode }}
           azure_storage_account: frontenddeployments
           blob_folder: ${{ needs.find-environment.outputs.env_name }}
+          table_name: deployments4${{ needs.find-environment.outputs.env_name }}
 
   frontend-sync-prod-to-test:
     runs-on: ubuntu-latest
@@ -89,9 +90,9 @@ jobs:
     steps:
       # must checkout the code to get the local actions
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: frontend-dist
           path: src/frontend/dist/
@@ -106,6 +107,10 @@ jobs:
         with:
           azure_storage_account: frontenddeployments
           blob_folder: test
+          table_name: deployments4test
+          override_version: ${{ needs.frontend.outputs.next_version }}
+          # because we are syncing from prod to test and we want the version to be incremented by minor
+          increment_mode: minor
   summery:
     permissions:
       contents: write
