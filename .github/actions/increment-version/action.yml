@@ -1,0 +1,61 @@
+author: "Alex Boesen"
+name: Increment version
+description: Increment the version based on the current version and the increment mode
+inputs:
+  current_version:
+    description: The current version to increment
+    required: true
+  increment_mode:
+    description: The mode to increment the version, can be 'major', 'minor', 'patch' or 'none'
+    default: patch
+outputs:
+  next_version:
+    value: ${{ steps.version.outputs.next_version }}
+    description: The incremented version
+  previous_version:
+    value: ${{ steps.format-version.outputs.current_version }}
+    description: The previous version
+
+runs:
+  using: "composite"
+  steps:
+    - name: Increment Major version
+      id: increment-major
+      if: ${{ inputs.increment_mode == 'major' }}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major + 1).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
+    - name: Increment Minor version
+      id: increment-minor
+      if: ${{ inputs.increment_mode == 'minor' }}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $GITHUB_OUTPUT
+    - name: Increment Patch version
+      id: increment-patch
+      if: ${{ inputs.increment_mode == 'patch'}}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_OUTPUT
+    - name: No Increment version
+      id: increment-none
+      if: ${{ inputs.increment_mode == 'none'}}
+      shell: bash
+      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
+    - name: format current version
+      id: format-version
+      shell: bash
+      # Determines the value of the current_version variable based on the outputs of the previous steps and forces it to be string by added single quotes.
+      run: |
+        echo "current_version='$(echo ${{ inputs.current_version }})'" >> $GITHUB_OUTPUT
+    - name: Generate next version
+      id: version
+      shell: pwsh
+      run: |
+        $currentVersion = ${{ env.CURRENT_VERSION }}
+        $versionObj = [System.Version]::Parse($currentVersion)
+        $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
+        echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
+      env:
+        CURRENT_VERSION:
+          ${{ steps.format-version.outputs.current_version }}
+          # Determines the value of the VERSION_INCR_FUNC variable based on the outputs of the previous steps.
+          # it will use the VERSION_INCR_FUNC from the step with the highest priority (increment-major, increment-minor, increment-patch, increment-none).
+        VERSION_INCR_FUNC: ${{ steps.increment-major.outputs.VERSION_INCR_FUNC || steps.increment-minor.outputs.VERSION_INCR_FUNC || steps.increment-patch.outputs.VERSION_INCR_FUNC || steps.increment-none.outputs.VERSION_INCR_FUNC }}

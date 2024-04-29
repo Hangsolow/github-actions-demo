@@ -52,54 +52,23 @@ runs:
         AZURE_STORAGE_AUTH_MODE: login
         TABLE_NAME: ${{ inputs.table_name }}
         PROJECT_NAME: ${{ inputs.project_name }}
-    - name: Use seed version
-      id: seed-version
-      #only run if both current version and override version is missing
-      if: ${{ steps.get-version.outcome == 'failure' && !inputs.override_version }}
-      shell: bash
-      run: echo "override_version='${{ inputs.seed_version }}'" >> "$GITHUB_OUTPUT"
-    - name: Increment Major version
-      id: increment-major
-      if: ${{ inputs.increment_mode == 'major' }}
-      shell: bash
-      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major + 1).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
-    - name: Increment Minor version
-      id: increment-minor
-      if: ${{ inputs.increment_mode == 'minor' }}
-      shell: bash
-      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor + 1).$($versionObj.Build)' >> $GITHUB_OUTPUT
-    - name: Increment Patch version
-      id: increment-patch
-      if: ${{ inputs.increment_mode == 'patch'}}
-      shell: bash
-      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build + 1)' >> $GITHUB_OUTPUT
-    - name: No Increment version
-      id: increment-none
-      if: ${{ inputs.increment_mode == 'none'}}
-      shell: bash
-      run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
-    - name: Generate next version
+    - name: increment version
       id: version
-      shell: pwsh
-      run: |
-        $currentVersion = ${{ env.CURRENT_VERSION }}
-        $versionObj = [System.Version]::Parse($currentVersion)
-        $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
-        echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
-      env:
-        CURRENT_VERSION:
-          ${{ steps.seed-version.outputs.override_version || inputs.override_version || steps.get-version.outputs.current_version }}
-          # Determines the value of the VERSION_INCR_FUNC variable based on the outputs of the previous steps.
-          # If the current_version is not null, it will use the VERSION_INCR_FUNC from the increment-none step.
-          # Otherwise, it will use the VERSION_INCR_FUNC from the step with the highest priority (increment-major, increment-minor, increment-patch, increment-none).
-        VERSION_INCR_FUNC: ${{ steps.seed_version.outputs.current_version != null && steps.increment-none.outputs.VERSION_INCR_FUNC || steps.increment-major.outputs.VERSION_INCR_FUNC || steps.increment-minor.outputs.VERSION_INCR_FUNC || steps.increment-patch.outputs.VERSION_INCR_FUNC || steps.increment-none.outputs.VERSION_INCR_FUNC }}
+      uses: ./.github/actions/increment-version
+      with:
+        # The value of `current_version` is determined based on the following conditions:
+        #- If the outcome of the `get-version` step is 'failure' and the `seed_version` input is provided, `current_version` will be set to the value of `seed_version`.
+        #- If the `override_version` input is provided, `current_version` will be set to the value of `override_version`.
+        #- If none of the above conditions are met, `current_version` will be set to the value of `get-version.outputs.current_version`.
+        current_version: ${{ steps.get-version.outcome == 'failure' && inputs.seed_version || inputs.override_version || steps.get-version.outputs.current_version }}
+        increment_mode: ${{ inputs.increment_mode }}
     - name: Deploy artifact to azure storage
       uses: azure/CLI@v2
       with:
         azcliversion: ${{ inputs.az_cli_version }}
         inlineScript: |
           az storage blob upload-batch --destination ${{ env.BLOB_FOLDER }}/${{ env.PROJECT_NAME }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
-          az storage entity insert --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+          az storage entity insert ${{ inputs.override_version != null && '--if-exists replace ' || '' }}--table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
           az storage entity insert --if-exists replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
       env:
         AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
