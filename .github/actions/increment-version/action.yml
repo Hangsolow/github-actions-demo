@@ -44,7 +44,7 @@ runs:
       shell: bash
       # Determines the value of the current_version variable based on the outputs of the previous steps and forces it to be string by added single quotes.
       run: |
-        echo "current_version='$(echo ${{ input.current_version }})'" >> $GITHUB_OUTPUT
+        echo "current_version='$(echo ${{ inputs.current_version }})'" >> $GITHUB_OUTPUT
     - name: Generate next version
       id: version
       shell: pwsh
