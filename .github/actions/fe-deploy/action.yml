@@ -68,7 +68,7 @@ runs:
         azcliversion: ${{ inputs.az_cli_version }}
         inlineScript: |
           az storage blob upload-batch --destination ${{ env.BLOB_FOLDER }}/${{ env.PROJECT_NAME }}/${{ env.NEXT_VERSION }} --source ${{ env.DIST_FOLDER_PATH }}
-          az storage entity insert ${{ inputs.override_version != null && '--if-exists replace' || '' }} --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
+          az storage entity insert ${{ inputs.override_version != null && '--if-exists replace ' || '' }}--table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=${{ env.NEXT_VERSION }} Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
           az storage entity insert --if-exists replace --table-name ${{ env.TABLE_NAME }} --entity PartitionKey=${{ env.PROJECT_NAME }} RowKey=current Version=${{ env.NEXT_VERSION }} Timestamp=${{ github.event.repository.updated_at }} Timestamp@odata.type=Edm.DateTime
       env:
         AZURE_STORAGE_ACCOUNT: ${{ inputs.azure_storage_account }}
