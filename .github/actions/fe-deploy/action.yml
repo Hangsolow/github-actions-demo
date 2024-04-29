@@ -78,17 +78,25 @@ runs:
       if: ${{ inputs.increment_mode == 'none'}}
       shell: bash
       run: echo 'VERSION_INCR_FUNC=$($versionObj.Major).$($versionObj.Minor).$($versionObj.Build)' >> $GITHUB_OUTPUT
+    - name: select current version
+      id: select-version
+      shell: bash
+      # Determines the value of the current_version variable based on the outputs of the previous steps and forces it to be string by added single quotes.
+      run: |
+        echo "currentVersion='$(echo ${{ env.CURRENT_VERSION }})'" >> $GITHUB_OUTPUT
+      env:
+        CURRENT_VERSION: ${{ steps.seed-version.outputs.override_version || inputs.override_version || steps.get-version.outputs.current_version }}
     - name: Generate next version
       id: version
       shell: pwsh
       run: |
-        $currentVersion = ${{ format('{0}', env.CURRENT_VERSION) }}
+        $currentVersion = ${{ env.CURRENT_VERSION }}
         $versionObj = [System.Version]::Parse($currentVersion)
         $nextVersion = "${{ env.VERSION_INCR_FUNC }}"
         echo "next_version=$nextVersion" >> $env:GITHUB_OUTPUT
       env:
         CURRENT_VERSION:
-          ${{ steps.seed-version.outputs.override_version || inputs.override_version || steps.get-version.outputs.current_version }}
+          ${{ steps.select-version.outputs.currentVersion }}
           # Determines the value of the VERSION_INCR_FUNC variable based on the outputs of the previous steps.
           # If the current_version is not null, it will use the VERSION_INCR_FUNC from the increment-none step.
           # Otherwise, it will use the VERSION_INCR_FUNC from the step with the highest priority (increment-major, increment-minor, increment-patch, increment-none).
